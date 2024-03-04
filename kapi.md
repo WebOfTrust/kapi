@@ -216,6 +216,7 @@ Notice that the route field, `r` value in the reply is set to the return route f
 }
 ```
 
+When using BADA-RUN on the reply above, the `i` field is the AID of the sender of the reply, which may be used to look up its associated key state to verify an attached signature. The DateTime, `dt` field is relative to the reply sender's clock. The recipient of the reply uses it to determine the monotonicity of the update contained in the reply data.
 
 ### Exchange
 
