@@ -278,7 +278,7 @@ In general, solicited query-reply message pairs and unsolicited reply messages w
 Sealed Confidential Data Handling.
 Independent router from Query/Reply/Exn router
 
-Used to capture and seal completed exchange transaction sets.
+Generaly used to disclosed sealed confidential data. A special case is to capture, seal, and disclose completed exchange transaction sets.
 
 
 
