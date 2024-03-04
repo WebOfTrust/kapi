@@ -33,11 +33,14 @@ The root directory route, `/` (absolute), `` (relative) is special. It provides 
 
 
 ### Routed Services
+
 The use of hierarchical routes to manage services is a very powerful paradigm not merely for externally facing APIs but for internally facing APIs. By abstracting the route concept so that it is not tied to the narrow confines of ReST URL based APIs, and in conjunction with OOBIs that map transport schemes to AIDs, a KERI implementation can use routing across its distributed infrastructure a a unifying architectural property.  
 
-For example, once a message has been received at a transport specific port and the appropriate authentication (secure attribution) policy has been applied, the message can then be forwarded to a router that further distributes the message to the process that handles it. One way to effect that distribution is to prefix the external route provided in the message with an internal route that redirects the message appropriately. Thus, routing can be used no only to organize the external facing API but any internal facing APIs. The return route enables the response to be returned despite asynchronous internal processing of the request. No artificial synchronous state must be maintained to ensure outgoing messages are matched with incoming messages. The internal routes can reflect different types of routing such as intra-process, inter-process, inter-host, inter-protocol, inter-database. 
+For example, once a message has been received at a transport specific port and the appropriate authentication (secure attribution) policy has been applied, the message can then be forwarded to a router that further distributes the message to the process that handles it. One way to effect that distribution is to prefix the external route provided in the message with an internal route that redirects the message appropriately. Thus, routing can be used to organize not only the external-facing API but also any internal-facing APIs. A return route enables the response to be returned despite asynchronous internal processing of the request. With this approach, no artificial synchronous state must be maintained to match outgoing messages with incoming messages. The internal routes can reflect different types of routing such as intra-process, inter-process, inter-host, inter-protocol, inter-database. 
 
 A given implementation could have multiple types of routers each with different properties including security properties.
+
+A more detailed exposition of a distributed routed services architecture may be found here, [Many Cubed](https://github.com/SmithSamuelM/Papers/blob/master/whitepapers/ManyCubed.md).
 
 #### Router(s)
 
