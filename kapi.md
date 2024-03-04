@@ -366,7 +366,6 @@ OOBI and well-known routes enable dicovery of other KERI components by role and 
 |---|---|---|
 |`/`| All | Route Directory provided by host, empty string "" for relative route |
 |`/oobi/`| All | Directory of OOBIs provided by host |
-|`/ipex/`| Controller, Agent | Directory of IPEX exchange routes|
 |`/kel/`| All | Directory of KELs provided by host |
 
 ### OOBIs
@@ -397,6 +396,12 @@ The OOBIs enable redirects to other hosts and roles.
 |`/`| All | Route Directory provided by host, empty string "" for relative route |
 |`/oobi/`| All | Directory of OOBIs provided by host |
 |`/ipex/`| Controller, Agent | Directory of IPEX exchange routes|
+|`/ipex/apply`| Controller, Agent | ipex apply|
+|`/ipex/offer`| Controller, Agent | ipex offer|
+|`/ipex/agree`| Controller, Agent | ipex agree|
+|`/ipex/grant`| Controller, Agent | ipex grant|
+|`/ipex/admit`| Controller, Agent | ipex admit|
+|`/ipex/spurn`| Controller, Agent | ipex spurn|
 |`/kel/`| All | Directory of KELs provided by host |
 
 
@@ -407,6 +412,7 @@ The OOBIs enable redirects to other hosts and roles.
 |`/`| All | Route Directory provided by host, empty string "" for relative route |
 |`/oobi/`| All | Directory of OOBIs provided by host |
 |`/kel/`| All | Directory of KELs provided by host |
+|`/tel/`| All | Directory of TELs provided by host |
 
 
 ### Watcher Routes
