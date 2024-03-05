@@ -13,7 +13,7 @@ def get_routes(folder):
                 scan_file(path, relpath, routes)
     return routes
 
-ROUTE_REGEX = re.compile(r'\Wroute(?:\s*=\s*"([^"]*)"(?:\s+if.*\Welse\s+"([^"]*)")?|s*\[\s*"([^"]*)"\])')
+ROUTE_REGEX = re.compile(r'(?:\W|_)routes?(?:\s*=\s*"([^"]*)"(?:\s+if.*\Welse\s+"([^"]*)")?|s*[(\[]\s*"([^"]*)")')
 
 def scan_file(path, relpath, routes):
     with open(path, "rt") as f:
