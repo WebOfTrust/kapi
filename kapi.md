@@ -452,7 +452,420 @@ OpenAPI documentation for the ReST Web API equivalents of the routes above.
 
 ## CLI Mapping
 
-Help documentation for the CLI equivalents of the routes above.
+<table>
+  <tr>
+    <th>Command</th>
+    <th>Options</th>
+    <th>Route</th>
+    <th>Role(s)</th>
+    <th>Description</th>
+    <th align="left">Example</th>
+  </tr>
+  <tr>
+    <td>kli init</td>
+    <td><code>--name</code>, <br/><code>--nopasscode</code>,<br/><code>--config-dir</code>, <br/><code>--config-file</code></td>
+    <td><code>/loc/scheme</code><br/> <code>/end/role/add</code></td>
+    <td>Controller</td>
+    <td>Create a database and keystore</td>
+    <td>
+        <code>/loc/scheme</code>:
+        <pre lang="json">
+{
+ "v": "KERI10JSON0000fa_",
+ "t": "rpy",
+ "d": "EKCWsSwYk5iWg8sJoGy-0xYFqLt32z_GguVClb5yipst",
+ "dt": "2022-01-20T12:57:59.823350+00:00",
+ "r": "/loc/scheme",
+ "a": {
+  "eid": "BLskRTInXnMxWaGqcpSyMgo0nYbalW99cGZESrz3zapM",
+  "scheme": "http",
+  "url": "http://127.0.0.1:5643/"
+ }
+}
+    </pre>
+    <code>/end/role/add</code>:
+    <pre lang="json">
+{
+ "v": "KERI10JSON000116_",
+ "t": "rpy",
+ "d": "ELexYYuiGdU8Fxg6DhURvEvHvrdZtdjD9B9wXDt8Ru8o",
+ "dt": "2022-01-20T12:57:59.823350+00:00",
+ "r": "/end/role/add",
+ "a": {
+  "cid": "BLskRTInXnMxWaGqcpSyMgo0nYbalW99cGZESrz3zapM",
+  "role": "controller",
+  "eid": "BLskRTInXnMxWaGqcpSyMgo0nYbalW99cGZESrz3zapM"
+ }
+}
+    </pre>
+    </td>
+  </tr>
+  <tr>
+    <td>kli oobi resolve</td>
+    <td><code>--name</code>, <br/><code>--oobi</code></td>
+    <td><code>/loc/scheme</code></td>
+    <td>N/A</td>
+    <td>Resolve the provided OOBI</td>
+    <td>
+        <code>/loc/scheme</code>:
+        <pre lang="json">
+{
+ "v": "KERI10JSON0000fa_",
+ "t": "rpy",
+ "d": "EKQm_MSgiIL64S0_XfI5IzrgxLuJLNSOqcvrl2lasXbX",
+ "dt": "2022-01-20T12:57:59.823350+00:00",
+ "r": "/loc/scheme",
+ "a": {
+  "eid": "BM35JN8XeJSEfpxopjn5jr7tAHCE5749f0OobhMLCorE",
+  "scheme": "http",
+  "url": "http://127.0.0.1:5645/"
+ }
+}
+        </pre>
+    </td>
+  </tr>
+  <tr>
+    <td>kli challenge respond</td>
+    <td><code>--name</code>, <br/><code>--alias</code>, <br/><code>--words</code>, <br/><code>--recipient</code></td>
+    <td><code>/challenge/response</code>,<br/><code>/fwd</code></td>
+    <td>Controller</td>
+    <td>Respond to a list of challenge words by signing and sending an EXN response</td>
+    <td>
+    <code>/challenge/response</code>:
+    <pre lang="json">
+{
+  "v": "KERI10JSON000000_",
+  "t": "exn",
+  "d": "",
+  "i": "ECGLco9S_-vypNnGkut8h2H8yNjvCEWwv-gZczzlRLv9",
+  "p": "",
+  "dt": "2024-03-13T14:14:58.282813+00:00",
+  "r": "/challenge/response",
+  "q": {},
+  "a": {
+    "i": "ECGLco9S_-vypNnGkut8h2H8yNjvCEWwv-gZczzlRLv9",
+    "words": [
+      "early",
+      "connect",
+      "term",
+      "tilt",
+      "rebel",
+      "first",
+      "clutch",
+      "reunion",
+      "intact",
+      "ritual",
+      "stove",
+      "moon"
+    ]
+  },
+  "e": {}
+}
+    </pre>
+    </td>
+  </tr>
+  <tr>
+    <td>kli challenge verify</td>
+    <td><code>--name</code>, <br/><code>--alias</code>, <br/><code>--words</code>, <br/><code>--signer</code></td>
+    <td><code>mbx</code></td>
+    <td>Controller</td>
+    <td>Check mailbox for EXN challenge response messages and verify their signatures and data against provided words and signer</td>
+    <td>
+    <code>mbx</code>:
+    <pre lang="json">
+ {
+ "v": "KERI10JSON00014d_",
+ "t": "qry",
+ "d": "EPaJ-OPAXkL8MTdAxYOqdRa5V7pC4Rus4qa8eILPPfnB",
+ "dt": "2024-03-13T14:43:43.288269+00:00",
+ "r": "mbx",
+ "rr": "",
+ "q": {
+  "pre": "EBaCirA7LR2FgDQk_Gv9hDIL_iTCRXnQwjUVkIR68zhi",
+  "topics": {
+   "/challenge": 0
+  },
+  "i": "EBaCirA7LR2FgDQk_Gv9hDIL_iTCRXnQwjUVkIR68zhi",
+  "src": "BBilc4-L3tFUnfM_wJr4S4OJanAv_VmF_dJNN6vkf2Ha"
+ }
+}
+    </pre>
+    </td>
+  </tr>
+  <tr>
+    <td>kli ends add</td>
+    <td> <code>--name</code><br/> <code>--alias</code><br/> <code>--role</code> <br/></td>
+    <td><code>/end/role/add</code></td>
+    <td>Any (i.e, mailbox)</td>
+    <td>Adding endpoint role authorizations</td>
+    <td>
+      <code>/end/role/add</code>:
+      <pre lang="json">
+        {
+         "v": "KERI10JSON000113_",
+         "t": "rpy",
+         "d": "ENdoMUE4UNIIjEMPLoZltfI2h4BFfSWTPNhyaNCvmD_J",
+         "dt": "2024-03-13T13:59:14.868617+00:00",
+         "r": "/end/role/add",
+         "a": {
+          "cid": "EDPRMO9GJATZueboJEdteu1qDkmNkWz-PbekC50twPBs",
+          "role": "mailbox",
+          "eid": "BLskRTInXnMxWaGqcpSyMgo0nYbalW99cGZESrz3zapM"
+         }
+        }
+      </pre>
+    </td>
+  </tr>
+  <tr>
+    <td>kli query</td>
+    <td><code>--name</code>,<br/> <code>--alias</code>,<br/> <code>--prefix</code>, <br/><code>--anchor</code></td>
+    <td><code>logs</code>,<br/><code>mbx</code></td>
+    <td>Witness</td>
+    <td>Request KEL from Witness</td>
+    <td>
+    <code>logs</code>: 
+    <pre lang="json">
+{
+ "v": "KERI10JSON00017b_",
+ "t": "qry",
+ "d": "EBgRDcE9puIJ0sTbuXcTGV2lUVaZk715xTbUyD_y93XI",
+ "dt": "2024-03-13T15:05:28.406740+00:00",
+ "r": "logs",
+ "rr": "",
+ "q": {
+  "s": "0",
+  "a": {
+   "i": "EAXJtG-Ek349v43ztpFdRXozyP7YnALdB0DdCEanlHmg",
+   "s": "0",
+   "d": "EAR75fE1ZmuCSfDwKPfbLowUWLqqi0ZX4502DLIo857Q"
+  },
+  "i": "EK5bvqO2RP8MRTJnE_PHzAsESDj2dHU5avT5I8tuuIzK",
+  "src": "BIKKuvBwpmDVA4Ds-EpL5bt9OqPzWPja2LigFYZN2YfX"
+ }
+}
+    </pre>
+    <code>mbx</code>:
+    <pre lang="json">
+ {
+ "v": "KERI10JSON000162_",
+ "t": "qry",
+ "d": "EA7clcGDLPg39mI0-ZVM2Wi5GJG8PltUIbdxI8wynsDK",
+ "dt": "2024-03-13T15:05:28.403042+00:00",
+ "r": "mbx",
+ "rr": "",
+ "q": {
+  "pre": "EDbnNfFc1DqFLAOdGg_FGFDo5lo6EnYLyV7X9ZsAytT8",
+  "topics": {
+   "/replay": 0,
+   "/receipt": 0,
+   "/reply": 0
+  },
+  "i": "EDbnNfFc1DqFLAOdGg_FGFDo5lo6EnYLyV7X9ZsAytT8",
+  "src": "BLskRTInXnMxWaGqcpSyMgo0nYbalW99cGZESrz3zapM"
+ }
+}
+    </pre>
+    </td>
+  </tr>
+<tr>
+    <td>kli interact</td>
+    <td><code>--name</code>,<br/> <code>--alias</code>,<br/> <code>--date</code></td>
+    <td><br/><code>mbx</code></td>
+    <td>Controller,Witness</td>
+    <td>Create and publish an interaction event</td>
+    <td>
+    <code>mbx</code>: 
+    <pre lang="json">
+ {
+ "v": "KERI10JSON000162_",
+ "t": "qry",
+ "d": "EObLlvm0iFjndYh_LVHTosaYEyHJ9kZACWvxHloVUukj",
+ "dt": "2024-03-13T15:47:43.085161+00:00",
+ "r": "mbx",
+ "rr": "",
+ "q": {
+  "pre": "EK5bvqO2RP8MRTJnE_PHzAsESDj2dHU5avT5I8tuuIzK",
+  "topics": {
+   "/receipt": 0,
+   "/replay": 0,
+   "/reply": 0
+  },
+  "i": "EK5bvqO2RP8MRTJnE_PHzAsESDj2dHU5avT5I8tuuIzK",
+  "src": "BIKKuvBwpmDVA4Ds-EpL5bt9OqPzWPja2LigFYZN2YfX"
+ }
+}
+    </pre>
+    </td>
+  </tr>
+  <tr>
+    <td>kli multisig incept</td>
+    <td><code>--name</code>,<br/> <code>--base</code>, <br/> <code>--alias</code>,<br/> <code>--file</code>, <br/> <code>--group</code></td>
+    <td><code>/multisig/icp</code>,<br/><code>mbx</code></td>
+    <td>Controller, Witness</td>
+    <td>Initialize a group identifier prefix</td>
+    <td>
+        <code>/multisig/icp</code>:
+        <pre lang="json">
+{
+  "v": "KERI10JSON000000_",
+  "t": "exn",
+  "d": "",
+  "i": "EKYLUMmNPZeEs77Zvclf0bSN5IN-mLfLpx2ySb-HDlk4",
+  "p": "",
+  "dt": "2024-03-13T16:26:53.465036+00:00",
+  "r": "/multisig/icp",
+  "q": {},
+  "a": {
+    "gid": "EC61gZ9lCKmHAS7U5ehUfEbGId5rcY0D7MirFZHDQcE2",
+    "smids": [
+      "EJccSRTfXYF6wrUVuenAIHzwcx3hJugeiJsEKmndi5q1",
+      "EKYLUMmNPZeEs77Zvclf0bSN5IN-mLfLpx2ySb-HDlk4"
+    ],
+    "rmids": [
+      "EJccSRTfXYF6wrUVuenAIHzwcx3hJugeiJsEKmndi5q1",
+      "EKYLUMmNPZeEs77Zvclf0bSN5IN-mLfLpx2ySb-HDlk4"
+    ]
+  },
+  "e": {
+    "icp": {
+      "v": "KERI10JSON000215_",
+      "t": "icp",
+      "d": "EC61gZ9lCKmHAS7U5ehUfEbGId5rcY0D7MirFZHDQcE2",
+      "i": "EC61gZ9lCKmHAS7U5ehUfEbGId5rcY0D7MirFZHDQcE2",
+      "s": "0",
+      "kt": "2",
+      "k": [
+        "DOZlWGPfDHLMf62zSFzE8thHmnQUOgA3_Y-KpOyF9ScG",
+        "DHGb2qY9WwZ1sBnC9Ip0F-M8QjTM27ftI-3jTGF9mc6K"
+      ],
+      "nt": "2",
+      "n": [
+        "EBvD5VIVvf6NpP9GRmTqu_Cd1KN0RKrKNfPJ-uhIxurj",
+        "EHlpcaxffvtcpoUUMTc6tpqAVtb2qnOYVk_3HRsZ34PH"
+      ],
+      "bt": "3",
+      "b": [
+        "BBilc4-L3tFUnfM_wJr4S4OJanAv_VmF_dJNN6vkf2Ha",
+        "BLskRTInXnMxWaGqcpSyMgo0nYbalW99cGZESrz3zapM",
+        "BIKKuvBwpmDVA4Ds-EpL5bt9OqPzWPja2LigFYZN2YfX"
+      ],
+      "c": [],
+      "a": []
+    },
+    "d": "EJvTPeVVclhqeV9C6T0iqhhJGhfUW0A4wr0O5QNI-T5_"
+  }
+}    
+    </pre>
+    </td>
+  </tr>
+  <tr>
+    <td>kli delegate confirm</td>
+    <td><code>--name</code>,<br/> <code>--alias</code></td>
+    <td><code>/delegate/request</code>, <code>mbx</code></td>
+    <td>Controller,Witness</td>
+    <td>Confirm success delegate event (icp or rot) and gather and propagate witness receipts.</td>
+    <td>
+        <code>/delegate/request</code>:
+        <pre lang="json">
+{
+ "v": "KERI10JSON0002ec_",
+ "t": "exn",
+ "d": "EMGt8ulixLyiXOtGEn8OytVBNIiMyT1K0_No0qnLN94S",
+ "i": "ELucL12aBcsSc90EbPOw_OpuSpizTb6pfqfA-WyiKFks",
+ "p": "",
+ "dt": "2024-03-13T16:40:42.502271+00:00",
+ "r": "/delegate/request",
+ "q": {},
+ "a": {
+  "delpre": "EHpD0-CDWOdu5RJ8jHBSUkOqBZ3cXeDVHWNb_Ul89VI7",
+  "aids": []
+ },
+ "e": {
+  "evt": {
+   "v": "KERI10JSON00018d_",
+   "t": "dip",
+   "d": "EPCqFjBoALCddSFjYKDEPXgUIPsLTVaQsTSrnMHMuxdu",
+   "i": "EPCqFjBoALCddSFjYKDEPXgUIPsLTVaQsTSrnMHMuxdu",
+   "s": "0",
+   "kt": "1",
+   "k": [
+    "DB_q5Krlh0CW_6aJSl4-p2OS3NtM3kAljQOiMsEnl1x3"
+   ],
+   "nt": "1",
+   "n": [
+    "EDigoL4TL2Jzn8iqA8JidP0OxQIYS9OXizX7XLSzljU0"
+   ],
+   "bt": "1",
+   "b": [
+    "BBilc4-L3tFUnfM_wJr4S4OJanAv_VmF_dJNN6vkf2Ha"
+   ],
+   "c": [],
+   "a": [],
+   "di": "EHpD0-CDWOdu5RJ8jHBSUkOqBZ3cXeDVHWNb_Ul89VI7"
+  },
+  "d": "EChBG8KC0VY7pAKkbWxOJaStmC4ra8t3PvXe9lXgA1G9"
+ }
+}    
+    </pre>
+    </td>
+  </tr>
+  <tr>
+    <td>kli ipex grant</td>
+    <td><code>--name</code>,<br/> <code>--alias</code>, <br/><code>--said</code>, <br/><code>--recipient</code>,</td>
+    <td><code>/ipex/grant</code>, <code>mbx</code></td>
+    <td>Controller, Witness</td>
+    <td>Reply to IPEX agree message or initiate an IPEX exchange with a credential issuance or presentation</td>
+    <td>
+        <code>/ipex/grant</code>:
+        <pre lang="json">
+{
+  "v": "KERI10JSON000000_",
+  "t": "exn",
+  "d": "",
+  "i": "EKxICWTx5Ph4EKq5xie2znZf7amggUn4Sd-2-46MIQTg",
+  "p": "",
+  "dt": "2024-03-13T16:55:49.000892+00:00",
+  "r": "/ipex/grant",
+  "q": {},
+  "a": {
+    "m": "",
+    "i": "ELjSFdrTdCebJlmvbFNX9-TLhR2PO0_60al1kQp5_e6k"
+  },
+  "e": {
+    ...
+    },
+    "d": "EL2AkHQB7DvrWhfu3rNr0mPKFrVhRjBLhKBH8V670XmR"
+  }
+    </pre>
+    </td>
+  </tr>
+    <tr>
+    <td>kli ipex admit</td>
+    <td><code>--name</code>,<br/> <code>--alias</code>, <br/><code>--said</code></td>
+    <td><code>/ipex/admit</code>, <code>mbx</code></td>
+    <td>Controller, Witness</td>
+    <td>Accept a credential being issued or presented in response to an IPEX grant/td>
+    <td>
+        <code>/ipex/admit</code>:
+        <pre lang="json">
+{
+ "v": "KERI10JSON000111_",
+ "t": "exn",
+ "d": "EFFdfALyez-Gyl_g9qoJ_tUaA7o360WV8cXr0q5t5S_2",
+ "i": "ELjSFdrTdCebJlmvbFNX9-TLhR2PO0_60al1kQp5_e6k",
+ "p": "EFz403wxWU3nLkM5KlLwwqH42aeYHsFfzISmxsCZOGbl",
+ "dt": "2024-03-13T17:11:43.879671+00:00",
+ "r": "/ipex/admit",
+ "q": {},
+ "a": {
+  "m": ""
+ },
+ "e": {}
+}
+    </pre>
+    </td>
+  </tr>
+</table>
 
 
 
