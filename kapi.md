@@ -437,13 +437,37 @@ The OOBIs enable redirects to other hosts and roles.
 
 ### All Routes
 
-|Route| Role(s) |Description|
-|---|---|---|
-|`/`| All | Route Directory provided by host, empty string "" for relative route |
-|`/oobi/`| All | Directory of OOBIs provided by host |
-|`/ipex/`| Controller, Agent | Directory of IPEX exchange routes|
-|`/kel/`| All | Directory of KELs provided by host |
-|`/tel/`| All | Directory of TELs provided by host |
+| Route                 | Role(s)           | Description                                                          |
+|-----------------------|-------------------|----------------------------------------------------------------------|
+| `/`                   | All               | Route Directory provided by host, empty string "" for relative route |
+| `/oobi/`              | All               | Directory of OOBIs provided by host                                  |
+| `/ipex/`              | Controller, Agent | Directory of IPEX exchange routes                                    |
+| `/ipex/admit`         | Controller, Agent | Ipex admit                                                           |
+| `/ipex/agree`         | Controller, Agent | Ipex agree                                                           |
+| `/ipex/apply`         | Controller, Agent | Ipex apply                                                           |
+| `/ipex/grant`         | Controller, Agent | Ipex grant                                                           |
+| `/ipex/offer`         | Controller, Agent | Ipex offer                                                           |
+| `/ipex/spurn`         | Controller, Agent | Ipex spurn                                                           |
+| `/kel/`               | All               | Directory of KELs provided by host                                   |
+| `/tel/`               | All               | Directory of TELs provided by host                                   |
+| `/mbx`                | All               | KERI mailbox                                                         |
+| `/logs`               | All               | Key event log route                                                  |
+| `/ksn/`               | All               | Directory of Key state notices                                       |
+| `/tsn/`               | All               | Directory of Transaction State Notices                               |
+| `/tsn/registry`       | All               | Transaction State Notices Registry                                   |
+| `/tsn/credential`     | All               | Transaction State Notices Credential                                 |
+| `/multisig/icp`       | All               | Incept group multisig                                                |
+| `/multisig/exn`       | All               | Multisig group interaction                                           |
+| `/multisig/iss`       | All               | Multisig cred issuance                                               |
+| `/multisig/rev`       | All               | Multisig cred revocation                                             |
+| `/multisig/rot`       | All               | Rotate group multisig                                                |
+| `/multisig/rpy`       | All               | Handle multisig reply messages                                       |
+| `/multisig/vcp`       | All               | Multisig registry inception event                                    |
+| `/challenge/response` | All               | Peer to peer challenge response                                      |
+| `/loc/scheme`         | All               | Location schemes route                                               |
+| `/end/role/`          | All               | Directory of add/cut roles                                           |
+| `/end/role/add`       | All               | Add roles                                                            |
+| `/end/role/cut`       | All               | Cut roles                                                            |
 
 
 ## Web API Mapping
