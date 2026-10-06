@@ -1,0 +1,348 @@
+# Curated half of the KAPI route registry.
+#
+# scripts/getroutes.py finds the routes; this file says what they are. Each entry is
+# keyed by message type and route (placeholders compare equal whatever they are named).
+# A route the extractor finds that has no entry here is reported as unclassified.
+#
+# tier: protocol | interop | application   (defined in routes.md)
+# status = "proposed" marks a route under review that the source need not have yet.
+# Tiers below are a first draft for maintainer review, not settled.
+
+# ---- reply (rpy) ----
+
+[[route]]
+msg = "rpy"
+route = "/end/role/{action}"
+tier = "protocol"
+note = "KERI spec names `/end/role/add` and `/end/role/cut` as literal routes; keripy registers one template."
+
+[[route]]
+msg = "rpy"
+route = "/loc/scheme"
+tier = "protocol"
+note = "KERI spec."
+
+[[route]]
+msg = "rpy"
+route = "/ksn/{aid}"
+tier = "interop"
+note = "Key state notice. Conveys key state but a verifier still needs the KEL, so not protocol."
+
+[[route]]
+msg = "rpy"
+route = "/tsn/registry/{aid}"
+tier = "interop"
+note = "Registry transaction state notice."
+
+[[route]]
+msg = "rpy"
+route = "/tsn/credential/{aid}"
+tier = "interop"
+note = "Credential transaction state notice."
+
+[[route]]
+msg = "rpy"
+route = "/watcher/{aid}/{action}"
+tier = "interop"
+note = "Controller tells its watcher what to watch; two implementations of the watcher role must agree."
+
+[[route]]
+msg = "rpy"
+route = "/introduce"
+tier = "interop"
+note = "OOBI introduction. Handled with no suffix, so by `Oobiery.processReply` itself."
+
+[[route]]
+msg = "rpy"
+route = "/decl/tags"
+tier = "interop"
+status = "proposed"
+note = "Proposed in keripy#1685, not on main. Self-asserted witness tags (e.g. `testnet`), same shape as `/loc/scheme`. See routes.md."
+
+[[route]]
+msg = "rpy"
+route = "/decl/attribs"
+tier = "interop"
+status = "proposed"
+note = "Proposed in keripy#1685, not on main. Self-asserted name=value attributes (e.g. `geo=ca`). See routes.md."
+
+# ---- query (qry) ----
+# keripy dispatches these twice: once by a hard-coded list in Kevery's parser hook
+# (core/eventing.py, `route in ["logs", "ksn", "mbx"]`) and again in processQuery.
+
+[[route]]
+msg = "qry"
+route = "logs"
+tier = "interop"
+note = "Relative route, unlike every `rpy`/`exn` route."
+
+[[route]]
+msg = "qry"
+route = "ksn"
+tier = "interop"
+note = "Relative. The reply comes back on `rpy /ksn/{aid}`."
+
+[[route]]
+msg = "qry"
+route = "mbx"
+tier = "interop"
+note = "Relative. Mailbox poll; topics are listed under Mailbox topics."
+
+[[route]]
+msg = "qry"
+route = "tels"
+tier = "interop"
+note = "Relative. Handled by Tevery."
+
+[[route]]
+msg = "qry"
+route = "tsn"
+tier = "interop"
+note = "Relative. Handled by Tevery."
+
+# ---- exchange (exn) ----
+
+[[route]]
+msg = "exn"
+route = "/ipex/apply"
+tier = "protocol"
+note = "ACDC spec IPEX table names the step as bare `apply`, without `/ipex/`. Registered twice in keripy (vc/protocoling.py and acdc/ipexing.py)."
+
+[[route]]
+msg = "exn"
+route = "/ipex/offer"
+tier = "protocol"
+note = "As `/ipex/apply`. The KERI spec uses `/ipex/offer` as its example of a transaction route."
+
+[[route]]
+msg = "exn"
+route = "/ipex/agree"
+tier = "protocol"
+note = "As `/ipex/apply`."
+
+[[route]]
+msg = "exn"
+route = "/ipex/grant"
+tier = "protocol"
+note = "As `/ipex/apply`."
+
+[[route]]
+msg = "exn"
+route = "/ipex/admit"
+tier = "protocol"
+note = "As `/ipex/apply`."
+
+[[route]]
+msg = "exn"
+route = "/ipex/spurn"
+tier = "protocol"
+note = "As `/ipex/apply`."
+
+[[route]]
+msg = "exn"
+route = "/multisig/icp"
+tier = "interop"
+note = "Group inception coordination."
+
+[[route]]
+msg = "exn"
+route = "/multisig/rot"
+tier = "interop"
+note = ""
+
+[[route]]
+msg = "exn"
+route = "/multisig/ixn"
+tier = "interop"
+note = ""
+
+[[route]]
+msg = "exn"
+route = "/multisig/vcp"
+tier = "interop"
+note = ""
+
+[[route]]
+msg = "exn"
+route = "/multisig/iss"
+tier = "interop"
+note = ""
+
+[[route]]
+msg = "exn"
+route = "/multisig/rev"
+tier = "interop"
+note = ""
+
+[[route]]
+msg = "exn"
+route = "/multisig/exn"
+tier = "interop"
+note = ""
+
+[[route]]
+msg = "exn"
+route = "/multisig/rpy"
+tier = "interop"
+note = ""
+
+[[route]]
+msg = "exn"
+route = "/challenge/response"
+tier = "interop"
+note = ""
+
+[[route]]
+msg = "exn"
+route = "/delegate/request"
+tier = "interop"
+note = ""
+
+[[route]]
+msg = "exn"
+route = "/fwd"
+tier = "interop"
+note = "Mailbox forwarding; the stored topic is `{recipient}/{topic}`."
+
+[[route]]
+msg = "exn"
+route = "/oobis"
+tier = "interop"
+note = "OOBI notification. Plural, unlike every other route."
+
+# ---- HTTP (falcon) ----
+# Mounted by the witness app (app/indirecting.py setupWitness) unless noted.
+
+[[route]]
+msg = "http"
+route = "/"
+tier = "interop"
+note = "Ingest: KERI messages POSTed or PUT with CESR attachments. Not the route directory kapi.md assigns to `/`."
+
+[[route]]
+msg = "http"
+route = "/receipts"
+tier = "interop"
+note = "Witness receipting."
+
+[[route]]
+msg = "http"
+route = "/query"
+tier = "interop"
+note = "HTTP GET for KELs and TELs."
+
+[[route]]
+msg = "http"
+route = "/oobi"
+tier = "protocol"
+note = "OOBI URL forms are in the KERI spec."
+
+[[route]]
+msg = "http"
+route = "/oobi/{aid}"
+tier = "protocol"
+note = "Some spec hits are the `/oobi/process` and `/oobi/witness` message routes, which this pattern also matches."
+
+[[route]]
+msg = "http"
+route = "/oobi/{aid}/{role}"
+tier = "protocol"
+note = ""
+
+[[route]]
+msg = "http"
+route = "/oobi/{aid}/{role}/{eid}"
+tier = "protocol"
+note = ""
+
+[[route]]
+msg = "http"
+route = "/end/{aid}/{role}"
+tier = "application"
+note = "ReST view of the endpoint-role database. Its spec hits are `rpy /end/role/add` and `/cut`, which this pattern also matches."
+
+[[route]]
+msg = "http"
+route = "/loc"
+tier = "application"
+note = "ReST view of the location database."
+
+[[route]]
+msg = "http"
+route = "/admin"
+tier = "application"
+note = "Endpoint administration."
+
+[[route]]
+msg = "http"
+route = "{prefix}/oobi"
+tier = "application"
+note = "Mounted as `/ext/oobi`: ask this node to resolve an OOBI."
+
+[[route]]
+msg = "http"
+route = "/mbx"
+tier = "application"
+note = "Server-sent-events signal stream. `signaling.loadEnds` is not called anywhere in keripy."
+
+[[route]]
+msg = "http"
+route = "sink.DefaultStaticSinkBasePath (sink)"
+tier = "application"
+note = "Static files, only when `static=True`."
+
+# ---- mailbox topics ----
+
+[[route]]
+msg = "mbx"
+route = "/receipt"
+tier = "interop"
+note = ""
+
+[[route]]
+msg = "mbx"
+route = "/replay"
+tier = "interop"
+note = ""
+
+[[route]]
+msg = "mbx"
+route = "/reply"
+tier = "interop"
+note = ""
+
+[[route]]
+msg = "mbx"
+route = "/multisig"
+tier = "interop"
+note = ""
+
+[[route]]
+msg = "mbx"
+route = "/credential"
+tier = "interop"
+note = ""
+
+[[route]]
+msg = "mbx"
+route = "/delegate"
+tier = "interop"
+note = ""
+
+[[route]]
+msg = "mbx"
+route = "/challenge"
+tier = "interop"
+note = ""
+
+[[route]]
+msg = "mbx"
+route = "/oobi"
+tier = "interop"
+note = ""
+
+[[route]]
+msg = "mbx"
+route = "/notification"
+tier = "interop"
+note = ""
