@@ -30,6 +30,24 @@ note = "Key state notice. Conveys key state but a verifier still needs the KEL, 
 
 [[route]]
 msg = "rpy"
+route = "/ksn"
+tier = "interop"
+note = "Cue label only. The reply Kevery actually builds for a `ksn` query is `/ksn/{src}` (core/eventing.py:5577)."
+
+[[route]]
+msg = "rpy"
+route = "/tsn/registry"
+tier = "interop"
+note = "Tevery answers a `tsn` query by cueing a reply on this route, without the `{aid}` segment the handler template `/tsn/registry/{aid}` has. Whether such a reply is routable has not been checked."
+
+[[route]]
+msg = "rpy"
+route = "/tsn/credential"
+tier = "interop"
+note = "As `/tsn/registry`: cued without the `{aid}` segment of `/tsn/credential/{aid}`. Not checked."
+
+[[route]]
+msg = "rpy"
 route = "/tsn/registry/{aid}"
 tier = "interop"
 note = "Registry transaction state notice."
@@ -67,8 +85,9 @@ status = "proposed"
 note = "Proposed in keripy#1685, not on main. Self-asserted name=value attributes (e.g. `geo=ca`). See routes.md."
 
 # ---- query (qry) ----
-# keripy dispatches these twice: once by a hard-coded list in Kevery's parser hook
-# (core/eventing.py, `route in ["logs", "ksn", "mbx"]`) and again in processQuery.
+# keripy dispatches these twice: once by hard-coded gate lists
+# (`route in ["logs", "ksn", "mbx"]` in core/parsing.py and core/eventing.py) and again
+# in processQuery. getroutes.py fails if the gates and processQuery disagree.
 
 [[route]]
 msg = "qry"
@@ -206,6 +225,12 @@ note = "Mailbox forwarding; the stored topic is `{recipient}/{topic}`."
 
 [[route]]
 msg = "exn"
+route = "/essr/req"
+tier = "interop"
+note = "Encrypted (ESSR) mailbox forwarding, sent by app/forwarding.py. No keripy handler is registered for it."
+
+[[route]]
+msg = "exn"
 route = "/oobis"
 tier = "interop"
 note = "OOBI notification. Plural, unlike every other route."
@@ -287,7 +312,7 @@ note = "Server-sent-events signal stream. `signaling.loadEnds` is not called any
 
 [[route]]
 msg = "http"
-route = "sink.DefaultStaticSinkBasePath (sink)"
+route = "{prefix} (sink)"
 tier = "application"
 note = "Static files, only when `static=True`."
 

@@ -8,23 +8,28 @@ keripy registers routes in several unrelated ways, and this script knows each of
   exn   handler classes with a class-level resource = "/..."      exchange routes
         or constructed with resource="/..."
   qry   route == "logs" comparisons inside processQuery()         query routes
+        route in ["logs", ...] gates that decide which processQuery is reached
   http  falcon app.add_route("/oobi/{aid}", ...) and add_sink     HTTP endpoints
-  mbx   topic="/receipt" / topics=[...] on mailbox calls          mailbox topics
+  mbx   topic="receipt" / topics=["/receipt", ...] on mailbox calls  mailbox topics
 
-It also records where routes are emitted (route="..." keyword arguments on the calls
-that build exn, rpy and qry messages), so a route that keripy sends but never handles
+It also records where routes are emitted: route="..." keyword arguments on the calls
+that build exn, rpy and qry messages (exchange, specialExchange, reply, query), and
+dict(kin="reply", route=...) cues. A route held in a local variable is followed to the
+string or f-string assigned to it. So a route that keripy sends but never handles
 shows up too.
 
 With --spec, each route is looked up as a quoted or backticked literal in the given
 specification sources, so the registry can say which routes a spec mentions.
 
-With --curated, tiers and notes from a hand-maintained TOML file are merged in. A route
-in the source that the curated file does not list, or a listed route (other than one
-marked status = "proposed") that the source no longer has, is reported on stderr and
-makes the exit status 1. That is the drift signal.
+With --curated, tiers and notes from a hand-maintained TOML file are merged in. The run
+exits 1, listing the cause on stderr, when the source and the curated file disagree:
+a route in the source that the curated file does not list; a listed route the source
+no longer has (unless it is marked status = "proposed"); a proposed route that has
+since appeared in the source; or a qry route that processQuery handles but no gate
+admits, or the reverse.
 
 Usage:
-    getroutes.py <keripy-repo-or-src-dir> [--spec DIR ...] [--curated routes.toml]
+    getroutes.py <keripy-repo-or-src-dir> [--spec [NAME=]DIR ...] [--curated routes.toml]
                  [--label TEXT] [--json]
 """
 
@@ -40,7 +45,8 @@ try:
 except ImportError:  # Python < 3.11
     tomllib = None
 
-EMITTERS = {"exchange": "exn", "reply": "rpy", "query": "qry"}
+EMITTERS = {"exchange": "exn", "specialExchange": "exn", "reply": "rpy", "query": "qry"}
+CUES = {"reply": "rpy", "query": "qry"}  # dict(kin=..., route=...) cue kinds
 
 
 def render(node):
@@ -60,8 +66,8 @@ def render(node):
         left, right = render(node.left), render(node.right)
         if left is not None and right is not None:
             return left + right
-    if isinstance(node, ast.Name):
-        return "{" + node.id + "}"
+    if isinstance(node, (ast.Name, ast.Attribute)):
+        return "{" + ast.unparse(node) + "}"
     if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
             and node.func.attr == "encode":
         return render(node.func.value)
@@ -89,24 +95,46 @@ def kwarg(node, name):
     return None
 
 
+def topic_key(t):
+    """Mailbox topics are written both with and without a leading slash."""
+    return "/" + t.lstrip("/")
+
+
 class Scanner(ast.NodeVisitor):
-    def __init__(self, relpath, found, emitted):
+    def __init__(self, relpath, found, emitted, gates):
         self.relpath = relpath
         self.found = found
         self.emitted = emitted
+        self.gates = gates
         self.classes = []
         self.funcs = []
-        self.locals = []
+        self.calls = []    # per function: local name -> class it was constructed from
+        self.strings = []  # per function: local name -> strings assigned to it
 
     def where(self, node):
         return f"{self.relpath}:{node.lineno}"
 
     def scope(self):
-        parts = self.classes[-1:] + self.funcs[-1:]
-        return ".".join(parts)
+        return ".".join(self.classes[-1:] + self.funcs[-1:])
+
+    def owner(self):
+        return self.classes[-1] if self.classes else "<module>"
 
     def add(self, msg, route, handler, node):
         self.found.append(dict(msg=msg, route=route, handler=handler, where=self.where(node)))
+
+    def emit(self, msg, route, role, node):
+        self.emitted.append(dict(msg=msg, route=route, role=role,
+                                 where=self.where(node), by=self.scope()))
+
+    def values(self, node):
+        """Every string a route expression can take, following one level of locals."""
+        if isinstance(node, ast.Name) and self.strings and node.id in self.strings[-1]:
+            return self.strings[-1][node.id]
+        if isinstance(node, ast.IfExp):
+            return self.values(node.body) + self.values(node.orelse)
+        r = render(node)
+        return [r] if r is not None else []
 
     def visit_ClassDef(self, node):
         for stmt in node.body:
@@ -122,35 +150,51 @@ class Scanner(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node):
         self.funcs.append(node.name)
-        self.locals.append({})
+        calls, strings = {}, {}
         for stmt in ast.walk(node):
-            if isinstance(stmt, ast.Assign) and isinstance(stmt.value, ast.Call):
+            if isinstance(stmt, ast.Assign):
                 for t in stmt.targets:
-                    if isinstance(t, ast.Name):
-                        self.locals[-1][t.id] = callname(stmt.value)
+                    if not isinstance(t, ast.Name):
+                        continue
+                    if isinstance(stmt.value, ast.Call):
+                        calls[t.id] = callname(stmt.value)
+                    elif isinstance(stmt.value, (ast.Constant, ast.JoinedStr, ast.IfExp, ast.BinOp)):
+                        # values() with no locals yet: render the expression itself
+                        self.strings.append({})
+                        vals = self.values(stmt.value)
+                        self.strings.pop()
+                        strings.setdefault(t.id, []).extend(v for v in vals if literal(v))
+        self.calls.append(calls)
+        self.strings.append(strings)
         self.generic_visit(node)
-        self.locals.pop()
+        self.strings.pop()
+        self.calls.pop()
         self.funcs.pop()
+
+    visit_AsyncFunctionDef = visit_FunctionDef
 
     def handler(self, node):
         """Name the class that handles a route: the callee, or what a local was built from."""
         if isinstance(node, ast.Call):
             return callname(node) or ast.unparse(node)
-        if isinstance(node, ast.Name) and self.locals and self.locals[-1].get(node.id):
-            return self.locals[-1][node.id]
+        if isinstance(node, ast.Name) and self.calls and self.calls[-1].get(node.id):
+            return self.calls[-1][node.id]
         return ast.unparse(node)
 
-    visit_AsyncFunctionDef = visit_FunctionDef
-
     def visit_Compare(self, node):
-        # query dispatch: `if route == "logs":` inside a processQuery method
-        if self.funcs and self.funcs[-1] == "processQuery" \
-                and isinstance(node.left, ast.Name) and node.left.id == "route":
+        if isinstance(node.left, ast.Name) and node.left.id == "route":
             for op, comp in zip(node.ops, node.comparators):
-                if isinstance(op, ast.Eq):
+                # query dispatch: `if route == "logs":` inside a processQuery method
+                if isinstance(op, ast.Eq) and self.funcs and self.funcs[-1] == "processQuery":
                     route = render(comp)
                     if route:
-                        self.add("qry", route, f"{self.classes[-1]}.processQuery", node)
+                        self.add("qry", route, f"{self.owner()}.processQuery", node)
+                # query gate: `if route in ["logs", "ksn", "mbx"]:` ahead of processQuery
+                elif isinstance(op, ast.In) and isinstance(comp, (ast.List, ast.Tuple)):
+                    for elt in comp.elts:
+                        route = render(elt)
+                        if route:
+                            self.gates.append(dict(route=route, where=self.where(node)))
         self.generic_visit(node)
 
     def visit_Call(self, node):
@@ -159,9 +203,8 @@ class Scanner(ast.NodeVisitor):
             route = render(node.args[0])
             suffix = kwarg(node, "suffix")
             method = "processReply" + (suffix.value if isinstance(suffix, ast.Constant) else "")
-            owner = self.classes[-1] if self.classes else "?"
             if route:
-                self.add("rpy", route, f"{owner}.{method}", node)
+                self.add("rpy", route, f"{self.owner()}.{method}", node)
         elif name == "add_route" and node.args:
             route = render(node.args[0])
             handler = self.handler(node.args[1]) if len(node.args) > 1 else "?"
@@ -170,7 +213,7 @@ class Scanner(ast.NodeVisitor):
         elif name == "add_sink":
             prefix = kwarg(node, "prefix")
             handler = self.handler(node.args[0]) if node.args else "?"
-            self.add("http", (ast.unparse(prefix) if prefix else "/") + " (sink)", handler, node)
+            self.add("http", (render(prefix) if prefix else "/") + " (sink)", handler, node)
         else:
             resource = kwarg(node, "resource")
             if resource is not None and name and name[0].isupper():
@@ -181,26 +224,28 @@ class Scanner(ast.NodeVisitor):
             if isinstance(topics, ast.List):
                 for elt in topics.elts:
                     t = render(elt)
-                    if t:
-                        self.emitted.append(dict(msg="mbx", route=t, role="reads",
-                                                 where=self.where(node), by=self.scope()))
+                    if t and "{" not in t:
+                        self.emit("mbx", topic_key(t), "reads", node)
             topic = kwarg(node, "topic")
             if topic is not None:
-                t = render(topic)
-                if t and t.startswith("/"):
-                    self.emitted.append(dict(msg="mbx", route=t, role="writes",
-                                             where=self.where(node), by=self.scope()))
+                for t in self.values(topic):
+                    if "{" not in t:  # f"{recp}/{topic}" is the storage key, not a topic
+                        self.emit("mbx", topic_key(t), "writes", node)
             route = kwarg(node, "route")
-            if route is not None and name in EMITTERS:
-                r = render(route)
-                if literal(r):
-                    self.emitted.append(dict(msg=EMITTERS[name], route=r, role="emits",
-                                             where=self.where(node), by=self.scope()))
+            msg = EMITTERS.get(name)
+            if name == "dict":
+                kin = kwarg(node, "kin")
+                if isinstance(kin, ast.Constant):
+                    msg = CUES.get(kin.value)
+            if route is not None and msg:
+                for r in self.values(route):
+                    if literal(r):
+                        self.emit(msg, r, "emits", node)
         self.generic_visit(node)
 
 
 def scan(src):
-    found, emitted = [], []
+    found, emitted, gates = [], [], []
     for root, dirs, files in os.walk(src):
         dirs[:] = sorted(d for d in dirs if d not in ("tests", "test", "__pycache__"))
         for fn in sorted(files):
@@ -210,8 +255,8 @@ def scan(src):
             rel = os.path.relpath(path, os.path.dirname(src))
             with open(path, "rb") as f:
                 tree = ast.parse(f.read(), filename=path)
-            Scanner(rel, found, emitted).visit(tree)
-    return found, emitted
+            Scanner(rel, found, emitted, gates).visit(tree)
+    return found, emitted, gates
 
 
 def shape(route):
@@ -219,25 +264,33 @@ def shape(route):
     return re.sub(r"\{[^}]*\}", "{}", route)
 
 
-def spec_hits(route, specdirs):
+def load_specs(specdirs):
+    """Read every markdown line of each spec source once: [(label, line)]."""
+    lines = []
+    for name, d in specdirs:
+        if not os.path.isdir(d):
+            sys.exit(f"--spec {name}={d}: not a directory")
+        before = len(lines)
+        for root, _, files in os.walk(d):
+            for fn in sorted(files):
+                if fn.endswith(".md"):
+                    path = os.path.join(root, fn)
+                    with open(path, encoding="utf-8", errors="replace") as f:
+                        lines += [(f"{name}:{os.path.relpath(path, d)}:{i}", line)
+                                  for i, line in enumerate(f, 1)]
+        if len(lines) == before:
+            sys.exit(f"--spec {name}={d}: no markdown files found")
+    return lines
+
+
+def spec_hits(route, speclines):
     """Find the route as a quoted or backticked literal, placeholders matching one segment."""
     if not literal(route) or route.strip("/") == "":
         return []
     body = "".join("[^/\"'`\\s]+" if part.startswith("{") else re.escape(part)
                    for part in re.split(r"(\{[^}]*\})", route) if part)
     pat = re.compile(r"[\"'`]" + body + r"[\"'`]")
-    hits = []
-    for name, d in specdirs:
-        for root, _, files in os.walk(d):
-            for fn in sorted(files):
-                if not fn.endswith(".md"):
-                    continue
-                path = os.path.join(root, fn)
-                with open(path, encoding="utf-8", errors="replace") as f:
-                    for i, line in enumerate(f, 1):
-                        if pat.search(line):
-                            hits.append(f"{name}:{os.path.relpath(path, d)}:{i}")
-    return hits
+    return [where for where, line in speclines if pat.search(line)]
 
 
 def load_curated(path):
@@ -247,11 +300,17 @@ def load_curated(path):
         sys.exit("--curated needs Python 3.11+ (tomllib)")
     with open(path, "rb") as f:
         data = tomllib.load(f)
-    return {(r["msg"], shape(r["route"])): r for r in data.get("route", [])}
+    curated = {}
+    for r in data.get("route", []):
+        key = (r["msg"], shape(r["route"]))
+        if key in curated:
+            sys.exit(f"{path}: duplicate entry for {r['msg']} {r['route']}")
+        curated[key] = r
+    return curated
 
 
-def build(src, specdirs, curated):
-    found, emitted = scan(src)
+def build(src, speclines, curated):
+    found, emitted, gates = scan(src)
     entries = {}
     for f in found:
         key = (f["msg"], shape(f["route"]))
@@ -263,24 +322,33 @@ def build(src, specdirs, curated):
             # an emitted route that is not handled: match it against handled templates
             for k, e in entries.items():
                 if k[0] == x["msg"] and re.fullmatch(
-                        re.escape(k[1]).replace(r"\{\}", r"[^/]+"), x["route"]):
+                        re.escape(k[1]).replace(r"\{\}", r"[^/]+"), shape(x["route"])):
                     key = k
                     break
         e = entries.setdefault(key, dict(msg=x["msg"], route=x["route"], handled=[], emitted=[]))
         e["emitted"].append(f"{x['role']} {x['by']} ({x['where']})")
     for key, e in entries.items():
-        e["spec"] = spec_hits(e["route"], specdirs) if specdirs else []
+        e["spec"] = spec_hits(e["route"], speclines)
         c = curated.get(key, {})
         e["tier"] = c.get("tier", "unclassified")
         e["note"] = c.get("note", "")
+        e["proposed"] = c.get("status") == "proposed"
     for key, c in curated.items():
         if key not in entries:
             entries[key] = dict(msg=c["msg"], route=c["route"], handled=[], emitted=[],
                                 spec=[], tier=c.get("tier", "unclassified"),
                                 note=c.get("note", ""), absent=True,
                                 proposed=c.get("status") == "proposed")
+    # qry routes must be admitted by a gate and handled by processQuery, or neither
+    handled_qry = {e["route"] for e in entries.values() if e["msg"] == "qry" and e["handled"]}
+    gated = {g["route"] for g in gates}
+    gate_problems = sorted(f"qry {r}: handled in processQuery but admitted by no gate"
+                           for r in handled_qry - gated)
+    gate_problems += sorted(f"qry {r}: admitted by a gate but handled by no processQuery"
+                            for r in gated - handled_qry)
     order = {"rpy": 0, "qry": 1, "exn": 2, "http": 3, "mbx": 4}
-    return sorted(entries.values(), key=lambda e: (order.get(e["msg"], 9), e["route"]))
+    rows = sorted(entries.values(), key=lambda e: (order.get(e["msg"], 9), e["route"]))
+    return rows, gate_problems
 
 
 def md(entries, label):
@@ -302,11 +370,12 @@ def md(entries, label):
                 "|---|---|---|---|---|---|"]
         for e in rows:
             def cell(items, n=3):
-                items = sorted(set(items))
+                rank = {"writes": 0, "emits": 0, "reads": 1}
+                items = sorted(set(items), key=lambda i: (rank.get(i.split()[0], 0), i))
                 s = "<br>".join(f"`{i}`" for i in items[:n])
                 return s + (f"<br>+{len(items) - n} more" if len(items) > n else "")
             handled = cell(e["handled"]) or (
-                "*proposed*" if e.get("proposed") else
+                "*proposed*" if e.get("absent") and e.get("proposed") else
                 "*not in this source*" if e.get("absent") else "—")
             out.append(f"| `{e['route']}` | {e['tier']} | {cell(e['spec'], 2) or '—'} | "
                        f"{handled} | {cell(e['emitted']) or '—'} | {e['note']} |")
@@ -327,23 +396,28 @@ def main():
     src = os.path.abspath(args.source)
     if os.path.isdir(os.path.join(src, "src", "keri")):
         src = os.path.join(src, "src", "keri")
+    if not os.path.isdir(src):
+        sys.exit(f"{args.source}: not a directory")
     specs = [tuple(s.split("=", 1)) if "=" in s else (os.path.basename(s.rstrip("/")), s)
              for s in args.spec]
-    entries = build(src, specs, load_curated(args.curated))
+    entries, gate_problems = build(src, load_specs(specs), load_curated(args.curated))
     if args.json:
         print(json.dumps(entries, indent=2))
     else:
         print(md(entries, args.label or src))
+
+    problems = list(gate_problems)
     if args.curated:
-        unclassified = [e for e in entries if e["tier"] == "unclassified"]
-        missing = [e for e in entries if e.get("absent") and not e.get("proposed")]
-        for label, rows in (("unclassified (in source, not in registry)", unclassified),
-                            ("missing (in registry, not in source)", missing)):
-            if rows:
-                print(f"{len(rows)} route(s) {label}:", file=sys.stderr)
-                for e in rows:
-                    print(f"  {e['msg']} {e['route']}", file=sys.stderr)
-        sys.exit(1 if unclassified or missing else 0)
+        for e in entries:
+            if e["tier"] == "unclassified":
+                problems.append(f"{e['msg']} {e['route']}: in source, not in registry")
+            elif e.get("absent") and not e.get("proposed"):
+                problems.append(f"{e['msg']} {e['route']}: in registry, not in source")
+            elif e["proposed"] and not e.get("absent"):
+                problems.append(f"{e['msg']} {e['route']}: marked proposed, but now in source")
+    for p in problems:
+        print(p, file=sys.stderr)
+    sys.exit(1 if problems else 0)
 
 
 if __name__ == "__main__":

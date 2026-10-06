@@ -6,7 +6,7 @@
 
 keripy is a library. What it offers other software is routes: the `r` values of routed messages (`qry`, `rpy`, `exn`, and in future `xip`, `pro` and `bar`) together with the handlers that act on them. An API is something an application assembles from routes, policy and transport, and it belongs to that application. The falcon app that turns keripy into a witness is such an application, even though it currently ships inside keripy, so its HTTP endpoints are listed here separately from routed-message routes.
 
-Some routes are part of the KERI and ACDC protocols and are specified there. Most are not. Of the 52 routes keripy registers or uses on main, a KERI or ACDC spec mentions only the `/end/role`, `/loc/scheme`, `/ipex/*` and `/oobi` families. Multisig coordination, delegation requests, challenge responses, key and transaction state notices, mailbox forwarding and every `qry` route are implemented without a written definition. KAPI is the place to write them down.
+Some routes are part of the KERI and ACDC protocols and are specified there. Most are not. Of the 56 routes keripy registers or uses on main, a KERI or ACDC spec mentions only the `/end/role`, `/loc/scheme`, `/ipex/*` and `/oobi` families. Multisig coordination, delegation requests, challenge responses, key and transaction state notices, mailbox forwarding and every `qry` route are implemented without a written definition. KAPI is the place to write them down.
 
 ## Tiers
 
@@ -43,9 +43,9 @@ These describe what keripy already does, and propose rules for new routes where 
 
 ## Why placement is a security decision
 
-KRAM, keripy's replay protection, can exempt messages from its timeliness checks. Exemptions are configured as (version, ilk, route) and matched as string prefixes of the message's route (`Kramer.intake`, `src/keri/core/kraming.py`). keripy builds in two of them, for `rpy /end/role` and `rpy /loc/scheme` (`Kramer.OobiDenials`), because those replies are replayed through OOBI resolution long after they were signed, so they rely on BADA ordering rather than freshness.
+KRAM, keripy's replay protection, is off unless a node's configuration enables it (`kram.enabled`, default false), and its exemptions are configured per protocol version. When it is on, it can exempt messages from its timeliness checks. Exemptions are configured as (version, ilk, route) and matched as string prefixes of the message's route (`Kramer.intake`, `src/keri/core/kraming.py`). When KRAM is enabled, keripy adds two built-in exemptions, for v2 `rpy /end/role` and v2 `rpy /loc/scheme` (`Kramer.OobiDenials`), because those replies are replayed through OOBI resolution long after they were signed, so they rely on BADA ordering rather than freshness.
 
-So where a route sits in the tree decides whether it is replay-protected. A route placed under an exempt prefix is exempt without anyone deciding it should be, and a route that needs the same treatment as `/loc/scheme` but lives elsewhere is not exempt unless someone adds it. The matching is by string, not by segment, so an exemption for `/end/role` also covers `/end/roles`. This is the most concrete reason a route namespace needs an owner.
+So on a node with KRAM enabled, where a route sits in the tree decides whether it is replay-protected. A route placed under an exempt prefix is exempt without anyone deciding it should be, and a route that needs the same treatment as `/loc/scheme` but lives elsewhere is not exempt unless someone adds it. The matching is by string, not by segment, so an exemption for `/end/role` also covers `/end/roles`. This is the most concrete reason a route namespace needs an owner.
 
 ## First entry: `/decl/tags` and `/decl/attribs` (keripy#1685)
 
@@ -55,7 +55,7 @@ Proposed registration: tier **interop**. A verifier never needs these to establi
 
 Two consequences follow from the sections above.
 
-- `/decl` is a new namespace, so it doesn't inherit the KRAM exemption that `/loc/scheme` has. Since decls travel through the same OOBI replay, they probably need the same exemption, added to `Kramer.OobiDenials`. This has not been tested.
+- `/decl` is a new namespace, so it doesn't inherit the KRAM exemption that `/loc/scheme` has. Decls travel in the same OOBI replay, and a KRAM-enabled node dropped old v2 decls while keeping the location sent with them, so #1685 now adds `/decl` to `Kramer.OobiDenials`. The default `Oobiery` runs no KRAM and was never affected.
 - If `/decl` were placed under `/end` or `/loc` instead, it would inherit whatever exemptions and policies cover those prefixes. Keeping it at the top level makes that choice explicit.
 
 ## Open questions for maintainers

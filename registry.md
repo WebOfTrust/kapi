@@ -10,13 +10,16 @@ Generated from keripy main 7bdf934a5 (2026-10-05), KERI spec fbdd4a6 (2026-08-28
 |---|---|---|---|---|---|
 | `/decl/attribs` | interop | — | *proposed* | — | Proposed in keripy#1685, not on main. Self-asserted name=value attributes (e.g. `geo=ca`). See routes.md. |
 | `/decl/tags` | interop | — | *proposed* | — | Proposed in keripy#1685, not on main. Self-asserted witness tags (e.g. `testnet`), same shape as `/loc/scheme`. See routes.md. |
-| `/end/role/{action}` | protocol | `KERI:spec-body.md:2988`<br>`KERI:spec-body.md:3002`<br>+2 more | `Kevery.processReplyEndRole (keri/core/eventing.py:5004)` | `emits AddDoer.addDo (keri/cli/commands/watcher/add.py:113)` | KERI spec names `/end/role/add` and `/end/role/cut` as literal routes; keripy registers one template. |
+| `/end/role/{action}` | protocol | `KERI:spec-body.md:2988`<br>`KERI:spec-body.md:3002`<br>+2 more | `Kevery.processReplyEndRole (keri/core/eventing.py:5004)` | `emits AddDoer.addDo (keri/cli/commands/mailbox/add.py:98)`<br>`emits AddDoer.addDo (keri/cli/commands/watcher/add.py:113)`<br>`emits BaseHab.makeEndRole (keri/app/habbing.py:2189)`<br>+1 more | KERI spec names `/end/role/add` and `/end/role/cut` as literal routes; keripy registers one template. |
 | `/introduce` | interop | — | `Oobiery.processReply (keri/app/oobiing.py:337)` | `emits IntroduceDoer.introduceDo (keri/cli/commands/introduce.py:118)` | OOBI introduction. Handled with no suffix, so by `Oobiery.processReply` itself. |
+| `/ksn` | interop | — | — | `emits Kevery.processQuery (keri/core/eventing.py:5579)` | Cue label only. The reply Kevery actually builds for a `ksn` query is `/ksn/{src}` (core/eventing.py:5577). |
 | `/ksn/{aid}` | interop | — | `Kevery.processReplyKeyStateNotice (keri/core/eventing.py:5006)` | `emits Kevery.processQuery (keri/core/eventing.py:5577)` | Key state notice. Conveys key state but a verifier still needs the KEL, so not protocol. |
 | `/loc/scheme` | protocol | `KERI:spec-body.md:2778`<br>`KERI:spec-body.md:2971`<br>+5 more | `Kevery.processReplyLocScheme (keri/core/eventing.py:5005)` | `emits BaseHab.makeLocScheme (keri/app/habbing.py:2290)` | KERI spec. |
+| `/tsn/credential` | interop | — | — | `emits Tevery.processQuery (keri/vdr/eventing.py:1628)` | As `/tsn/registry`: cued without the `{aid}` segment of `/tsn/credential/{aid}`. Not checked. |
 | `/tsn/credential/{aid}` | interop | — | `Tevery.processReplyCredentialTxnState (keri/vdr/eventing.py:1640)` | — | Credential transaction state notice. |
+| `/tsn/registry` | interop | — | — | `emits Tevery.processQuery (keri/vdr/eventing.py:1624)` | Tevery answers a `tsn` query by cueing a reply on this route, without the `{aid}` segment the handler template `/tsn/registry/{aid}` has. Whether such a reply is routable has not been checked. |
 | `/tsn/registry/{aid}` | interop | — | `Tevery.processReplyRegistryTxnState (keri/vdr/eventing.py:1639)` | — | Registry transaction state notice. |
-| `/watcher/{aid}/{action}` | interop | — | `Kevery.processReplyAddWatched (keri/core/eventing.py:5007)` | — | Controller tells its watcher what to watch; two implementations of the watcher role must agree. |
+| `/watcher/{aid}/{action}` | interop | — | `Kevery.processReplyAddWatched (keri/core/eventing.py:5007)` | `emits AddDoer.addDo (keri/cli/commands/watcher/add.py:132)` | Controller tells its watcher what to watch; two implementations of the watcher role must agree. |
 
 ## Query (`qry`) routes
 
@@ -34,21 +37,22 @@ Generated from keripy main 7bdf934a5 (2026-10-05), KERI spec fbdd4a6 (2026-08-28
 |---|---|---|---|---|---|
 | `/challenge/response` | interop | — | `ChallengeHandler (keri/app/challenging.py:26)` | `emits RespondDoer.respondDo (keri/cli/commands/challenge/respond.py:116)` |  |
 | `/delegate/request` | interop | — | `DelegateRequestHandler (keri/app/delegating.py:279)` | — |  |
-| `/fwd` | interop | — | `ForwardHandler (keri/app/forwarding.py:508)` | `emits StreamPoster.createForward (keri/app/forwarding.py:455)` | Mailbox forwarding; the stored topic is `{recipient}/{topic}`. |
+| `/essr/req` | interop | — | — | `emits StreamPoster._essrWrapper (keri/app/forwarding.py:421)` | Encrypted (ESSR) mailbox forwarding, sent by app/forwarding.py. No keripy handler is registered for it. |
+| `/fwd` | interop | — | `ForwardHandler (keri/app/forwarding.py:508)` | `emits Poster.forward (keri/app/forwarding.py:213)`<br>`emits Poster.forwardToWitness (keri/app/forwarding.py:250)`<br>`emits StreamPoster.createForward (keri/app/forwarding.py:455)`<br>+1 more | Mailbox forwarding; the stored topic is `{recipient}/{topic}`. |
 | `/ipex/admit` | protocol | — | `IpexHandler (keri/acdc/ipexing.py:2166)`<br>`IpexHandler (keri/vc/protocoling.py:482)` | `emits admit (keri/acdc/ipexing.py:2083)`<br>`emits ipexAdmitExn (keri/vc/protocoling.py:408)` | As `/ipex/apply`. |
 | `/ipex/agree` | protocol | — | `IpexHandler (keri/acdc/ipexing.py:2164)`<br>`IpexHandler (keri/vc/protocoling.py:480)` | `emits agree (keri/acdc/ipexing.py:1906)`<br>`emits ipexAgreeExn (keri/vc/protocoling.py:287)` | As `/ipex/apply`. |
 | `/ipex/apply` | protocol | — | `IpexHandler (keri/acdc/ipexing.py:2162)`<br>`IpexHandler (keri/vc/protocoling.py:478)` | `emits apply (keri/acdc/ipexing.py:1710)`<br>`emits ipexApplyExn (keri/vc/protocoling.py:181)` | ACDC spec IPEX table names the step as bare `apply`, without `/ipex/`. Registered twice in keripy (vc/protocoling.py and acdc/ipexing.py). |
-| `/ipex/grant` | protocol | — | `IpexHandler (keri/acdc/ipexing.py:2165)`<br>`IpexHandler (keri/vc/protocoling.py:481)` | `emits grant (keri/acdc/ipexing.py:2008)` | As `/ipex/apply`. |
-| `/ipex/offer` | protocol | `KERI:spec-body.md:2139`<br>`KERI:spec-body.md:992` | `IpexHandler (keri/acdc/ipexing.py:2163)`<br>`IpexHandler (keri/vc/protocoling.py:479)` | `emits offer (keri/acdc/ipexing.py:1850)` | As `/ipex/apply`. The KERI spec uses `/ipex/offer` as its example of a transaction route. |
+| `/ipex/grant` | protocol | — | `IpexHandler (keri/acdc/ipexing.py:2165)`<br>`IpexHandler (keri/vc/protocoling.py:481)` | `emits grant (keri/acdc/ipexing.py:2008)`<br>`emits ipexGrantExn (keri/vc/protocoling.py:357)` | As `/ipex/apply`. |
+| `/ipex/offer` | protocol | `KERI:spec-body.md:2139`<br>`KERI:spec-body.md:992` | `IpexHandler (keri/acdc/ipexing.py:2163)`<br>`IpexHandler (keri/vc/protocoling.py:479)` | `emits ipexOfferExn (keri/vc/protocoling.py:238)`<br>`emits offer (keri/acdc/ipexing.py:1850)` | As `/ipex/apply`. The KERI spec uses `/ipex/offer` as its example of a transaction route. |
 | `/ipex/spurn` | protocol | — | `IpexHandler (keri/acdc/ipexing.py:2167)`<br>`IpexHandler (keri/vc/protocoling.py:483)` | `emits ipexSpurnExn (keri/vc/protocoling.py:458)`<br>`emits spurn (keri/acdc/ipexing.py:2132)` | As `/ipex/apply`. |
-| `/multisig/exn` | interop | — | `MultisigNotificationHandler (keri/app/grouping.py:312)` | — |  |
-| `/multisig/icp` | interop | — | `MultisigNotificationHandler (keri/app/grouping.py:306)` | `emits multisigInceptExn (keri/app/grouping.py:387)` | Group inception coordination. |
-| `/multisig/iss` | interop | — | `MultisigNotificationHandler (keri/app/grouping.py:310)` | — |  |
-| `/multisig/ixn` | interop | — | `MultisigNotificationHandler (keri/app/grouping.py:308)` | `emits multisigInteractExn (keri/app/grouping.py:541)` |  |
-| `/multisig/rev` | interop | — | `MultisigNotificationHandler (keri/app/grouping.py:311)` | — |  |
-| `/multisig/rot` | interop | — | `MultisigNotificationHandler (keri/app/grouping.py:307)` | `emits multisigRotateExn (keri/app/grouping.py:465)` |  |
-| `/multisig/rpy` | interop | — | `MultisigNotificationHandler (keri/app/grouping.py:313)` | `emits multisigRpyExn (keri/app/grouping.py:729)` |  |
-| `/multisig/vcp` | interop | — | `MultisigNotificationHandler (keri/app/grouping.py:309)` | — |  |
+| `/multisig/exn` | interop | — | `MultisigNotificationHandler (keri/app/grouping.py:312)` | `emits multisigExn (keri/app/grouping.py:767)` |  |
+| `/multisig/icp` | interop | — | `MultisigNotificationHandler (keri/app/grouping.py:306)` | `emits multisigInceptExn (keri/app/grouping.py:355)`<br>`emits multisigInceptExn (keri/app/grouping.py:387)` | Group inception coordination. |
+| `/multisig/iss` | interop | — | `MultisigNotificationHandler (keri/app/grouping.py:310)` | `emits multisigIssueExn (keri/app/grouping.py:624)` |  |
+| `/multisig/ixn` | interop | — | `MultisigNotificationHandler (keri/app/grouping.py:308)` | `emits multisigInteractExn (keri/app/grouping.py:515)`<br>`emits multisigInteractExn (keri/app/grouping.py:541)` |  |
+| `/multisig/rev` | interop | — | `MultisigNotificationHandler (keri/app/grouping.py:311)` | `emits multisigRevokeExn (keri/app/grouping.py:662)` |  |
+| `/multisig/rot` | interop | — | `MultisigNotificationHandler (keri/app/grouping.py:307)` | `emits multisigRotateExn (keri/app/grouping.py:438)`<br>`emits multisigRotateExn (keri/app/grouping.py:465)` |  |
+| `/multisig/rpy` | interop | — | `MultisigNotificationHandler (keri/app/grouping.py:313)` | `emits multisigRpyExn (keri/app/grouping.py:705)`<br>`emits multisigRpyExn (keri/app/grouping.py:729)` |  |
+| `/multisig/vcp` | interop | — | `MultisigNotificationHandler (keri/app/grouping.py:309)` | `emits multisigRegistryInceptExn (keri/app/grouping.py:585)` |  |
 | `/oobis` | interop | — | `OobiRequestHandler (keri/app/oobiing.py:201)` | — | OOBI notification. Plural, unlike every other route. |
 
 ## HTTP endpoints
@@ -66,20 +70,20 @@ Generated from keripy main 7bdf934a5 (2026-10-05), KERI spec fbdd4a6 (2026-08-28
 | `/oobi/{aid}/{role}/{eid}` | protocol | — | `OOBIEnd (keri/end/ending.py:634)` | — |  |
 | `/query` | interop | — | `QueryEnd (keri/app/indirecting.py:104)` | — | HTTP GET for KELs and TELs. |
 | `/receipts` | interop | — | `ReceiptEnd (keri/app/indirecting.py:102)` | — | Witness receipting. |
-| `sink.DefaultStaticSinkBasePath (sink)` | application | — | `StaticSink (keri/end/ending.py:620)` | — | Static files, only when `static=True`. |
 | `{prefix}/oobi` | application | — | `OobiResource (keri/app/oobiing.py:35)` | — | Mounted as `/ext/oobi`: ask this node to resolve an OOBI. |
+| `{sink.DefaultStaticSinkBasePath} (sink)` | application | — | `StaticSink (keri/end/ending.py:620)` | — | Static files, only when `static=True`. |
 
 ## Mailbox topics
 
 | Route | Tier | In spec | Handled by | Emitted / used by | Note |
 |---|---|---|---|---|---|
-| `/challenge` | interop | — | — | `reads ContinueDoer.__init__ (keri/cli/commands/multisig/continue_.py:46)`<br>`reads KeverDoer.__init__ (keri/cli/commands/kevers.py:46)`<br>`reads VerifyDoer.__init__ (keri/cli/commands/challenge/verify.py:81)`<br>+1 more |  |
-| `/credential` | interop | — | — | `reads AdmitDoer.__init__ (keri/cli/commands/ipex/admit.py:75)`<br>`reads ContinueDoer.__init__ (keri/cli/commands/multisig/continue_.py:46)`<br>`reads CredentialIssuer.__init__ (keri/cli/commands/vc/create.py:169)`<br>+6 more |  |
-| `/delegate` | interop | — | — | `reads ConfirmDoer.__init__ (keri/cli/commands/delegate/confirm.py:92)`<br>`reads ContinueDoer.__init__ (keri/cli/commands/multisig/continue_.py:46)`<br>`reads JoinDoer.__init__ (keri/cli/commands/ipex/join.py:88)`<br>+2 more |  |
-| `/multisig` | interop | — | — | `reads AdmitDoer.__init__ (keri/cli/commands/ipex/admit.py:75)`<br>`reads ConfirmDoer.__init__ (keri/cli/commands/delegate/confirm.py:92)`<br>`reads ContinueDoer.__init__ (keri/cli/commands/multisig/continue_.py:46)`<br>+13 more |  |
+| `/challenge` | interop | — | — | `writes ChallengeHandler.handle (keri/app/challenging.py:54)`<br>`writes RespondDoer.respondDo (keri/cli/commands/challenge/respond.py:124)`<br>`reads ContinueDoer.__init__ (keri/cli/commands/multisig/continue_.py:46)`<br>+2 more |  |
+| `/credential` | interop | — | — | `writes AdmitDoer.admitDo (keri/cli/commands/ipex/admit.py:153)`<br>`writes GrantDoer.grantDo (keri/cli/commands/ipex/grant.py:157)`<br>`writes IntroduceDoer.introduceDo (keri/cli/commands/introduce.py:125)`<br>+13 more |  |
+| `/delegate` | interop | — | — | `writes Anchorer.processPartialWitnessEscrow (keri/app/delegating.py:215)`<br>`writes Anchorer.processPartialWitnessEscrow (keri/app/delegating.py:220)`<br>`writes Poster.sendEventToDelegator (keri/app/forwarding.py:169)`<br>+7 more |  |
+| `/multisig` | interop | — | — | `writes AdmitDoer.admitDo (keri/cli/commands/ipex/admit.py:142)`<br>`writes ConfirmDoer.confirmDo (keri/cli/commands/delegate/confirm.py:196)`<br>`writes CredentialIssuer.createDo (keri/cli/commands/vc/create.py:257)`<br>+35 more |  |
 | `/notification` | interop | — | — | `writes Notifier.add (keri/app/notifying.py:373)`<br>`writes Notifier.mar (keri/app/notifying.py:439)`<br>`writes Notifier.rem (keri/app/notifying.py:402)` |  |
 | `/oobi` | interop | `KERI:spec-body.md:1023`<br>`KERI:spec-body.md:1038`<br>+3 more | — | `reads ContinueDoer.__init__ (keri/cli/commands/multisig/continue_.py:46)`<br>`reads KeverDoer.__init__ (keri/cli/commands/kevers.py:46)` |  |
-| `/receipt` | interop | — | — | `reads AdmitDoer.__init__ (keri/cli/commands/ipex/admit.py:75)`<br>`reads ConfirmDoer.__init__ (keri/cli/commands/delegate/confirm.py:92)`<br>`reads ContactQueryDoer.__init__ (keri/cli/commands/contacts/query.py:70)`<br>+23 more |  |
-| `/replay` | interop | — | — | `reads AdjudicationDoer.__init__ (keri/cli/commands/watcher/adjudicate.py:63)`<br>`reads AdmitDoer.__init__ (keri/cli/commands/ipex/admit.py:75)`<br>`reads ConfirmDoer.__init__ (keri/cli/commands/delegate/confirm.py:92)`<br>+22 more |  |
-| `/reply` | interop | — | — | `reads AdjudicationDoer.__init__ (keri/cli/commands/watcher/adjudicate.py:63)`<br>`reads ContactQueryDoer.__init__ (keri/cli/commands/contacts/query.py:70)`<br>`reads InceptDoer.__init__ (keri/cli/commands/incept.py:178)`<br>+9 more |  |
+| `/receipt` | interop | — | — | `writes Respondant.cueDo (keri/app/storing.py:257)`<br>`reads AdmitDoer.__init__ (keri/cli/commands/ipex/admit.py:75)`<br>`reads ConfirmDoer.__init__ (keri/cli/commands/delegate/confirm.py:92)`<br>+24 more |  |
+| `/replay` | interop | — | — | `writes Respondant.cueDo (keri/app/storing.py:275)`<br>`reads AdjudicationDoer.__init__ (keri/cli/commands/watcher/adjudicate.py:63)`<br>`reads AdmitDoer.__init__ (keri/cli/commands/ipex/admit.py:75)`<br>+23 more |  |
+| `/reply` | interop | — | — | `writes AddDoer.addDo (keri/cli/commands/watcher/add.py:117)`<br>`writes Respondant.cueDo (keri/app/storing.py:292)`<br>`reads AdjudicationDoer.__init__ (keri/cli/commands/watcher/adjudicate.py:63)`<br>+11 more |  |
 
