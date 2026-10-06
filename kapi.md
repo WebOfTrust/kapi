@@ -1,4 +1,6 @@
 # Keri API (KAPI)
+
+> *Status, October 2026.* The message-format material below (routable message types and their fields) has since been taken into the KERI specification. The routing and discovery material (unparametrized routes, directory routes, `rr` return routes, the `pro`/`bar` pre-router) has not been implemented in keripy. The route tables later in this document predate keripy's current routes. For the routes keripy actually serves, their tiers, and conventions for new routes, see [routes.md](routes.md) and [registry.md](registry.md).
 ## Overview
 
 The various components in the KERI ecosystem such as Controllers, Agents, Witnesses, Watchers, Registrars etc need application programmer interfaces (APIs) by which they can share information. The unique properties of the KERI protocol require APIs that preserve those properties. We call the set of APIs the KERI API, or KAPI for short. This means that conventional approaches to API design must be adapted to take advantage of the unique features of the KERI stack. The main protocols in the KERI stack are CESR, KERI, and ACDC. These include sub-protocols such as SAID, OOBI, IPEX, and SAD Path Signatures.
