@@ -12,6 +12,11 @@ keripy registers routes in several unrelated ways, and this script knows each of
   http  falcon app.add_route("/oobi/{aid}", ...) and add_sink     HTTP endpoints
   mbx   topic="receipt" / topics=["/receipt", ...] on mailbox calls  mailbox topics
 
+It records two kinds of policy a route inherits from where it sits in the tree:
+`.startswith("/...")` and `in ("/...", ...)` checks on a route anywhere in the source
+(for example, which exn routes may carry embedded messages), and KRAM's built-in
+exemptions in `Kramer.OobiDenials`.
+
 It also records where routes are emitted: route="..." keyword arguments on the calls
 that build exn, rpy and qry messages (exchange, specialExchange, reply, query), and
 dict(kin="reply", route=...) cues. A route held in a local variable is followed to the
@@ -24,8 +29,8 @@ specification sources, so the registry can say which routes a spec mentions.
 With --curated, tiers and notes from a hand-maintained TOML file are merged in. The run
 exits 1, listing the cause on stderr, when the source and the curated file disagree:
 a route in the source that the curated file does not list; a listed route the source
-no longer has (unless it is marked status = "proposed"); a proposed route that has
-since appeared in the source; or a qry route that processQuery handles but no gate
+no longer has (unless it is marked status = "proposed" or "retired"); a proposed route
+that has since appeared in the source; a retired route that has reappeared; or a qry route that processQuery handles but no gate
 admits, or the reverse.
 
 Usage:
@@ -37,6 +42,7 @@ import argparse
 import ast
 import json
 import os
+import fnmatch
 import re
 import sys
 
@@ -95,17 +101,29 @@ def kwarg(node, name):
     return None
 
 
+def routeish(node):
+    """True for expressions that hold a message's route: route, x.route, x['r']."""
+    if isinstance(node, ast.Name):
+        return node.id == "route"
+    if isinstance(node, ast.Attribute):
+        return node.attr == "route"
+    if isinstance(node, ast.Subscript):
+        return isinstance(node.slice, ast.Constant) and node.slice.value == "r"
+    return False
+
+
 def topic_key(t):
     """Mailbox topics are written both with and without a leading slash."""
     return "/" + t.lstrip("/")
 
 
 class Scanner(ast.NodeVisitor):
-    def __init__(self, relpath, found, emitted, gates):
+    def __init__(self, relpath, found, emitted, gates, policies):
         self.relpath = relpath
         self.found = found
         self.emitted = emitted
         self.gates = gates
+        self.policies = policies
         self.classes = []
         self.funcs = []
         self.calls = []    # per function: local name -> class it was constructed from
@@ -136,8 +154,25 @@ class Scanner(ast.NodeVisitor):
         r = render(node)
         return [r] if r is not None else []
 
+    def policy(self, kind, prefix, node, msgs=None):
+        self.policies.append(dict(kind=kind, prefix=prefix, msgs=msgs,
+                                  where=self.where(node), by=self.scope()))
+
     def visit_ClassDef(self, node):
         for stmt in node.body:
+            # KRAM's built-in exemptions: OobiDenials = ([[2, 0], Ilks.rpy, "/loc/scheme"], ...)
+            if node.name == "Kramer" and isinstance(stmt, ast.Assign) \
+                    and any(isinstance(t, ast.Name) and t.id == "OobiDenials"
+                            for t in stmt.targets) \
+                    and isinstance(stmt.value, (ast.Tuple, ast.List)):
+                for elt in stmt.value.elts:
+                    if isinstance(elt, ast.List) and len(elt.elts) == 3:
+                        vrsn, ilk, route = elt.elts
+                        r = render(route)
+                        if r:
+                            v = ".".join(ast.unparse(x) for x in getattr(vrsn, "elts", []))
+                            i = ilk.attr if isinstance(ilk, ast.Attribute) else ast.unparse(ilk)
+                            self.policy(f"KRAM-exempt v{v}", r, elt, msgs={i})
             if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 \
                     and isinstance(stmt.targets[0], ast.Name) \
                     and stmt.targets[0].id == "resource":
@@ -193,12 +228,28 @@ class Scanner(ast.NodeVisitor):
                 elif isinstance(op, ast.In) and isinstance(comp, (ast.List, ast.Tuple)):
                     for elt in comp.elts:
                         route = render(elt)
-                        if route:
+                        if route and not route.startswith("/"):
                             self.gates.append(dict(route=route, where=self.where(node)))
+        if routeish(node.left):
+            # ad-hoc dispatch on absolute routes: `serder.ked['r'] in ('/oobi/witness', ...)`
+            for op, comp in zip(node.ops, node.comparators):
+                elts = comp.elts if isinstance(op, ast.In) and \
+                    isinstance(comp, (ast.List, ast.Tuple)) else \
+                    [comp] if isinstance(op, ast.Eq) else []
+                for elt in elts:
+                    route = render(elt)
+                    if route and route.startswith("/") and literal(route):
+                        self.found.append(dict(msg="adhoc", route=route,
+                                               handler=self.scope(), where=self.where(node)))
         self.generic_visit(node)
 
     def visit_Call(self, node):
         name = callname(node)
+        if name == "startswith" and isinstance(node.func, ast.Attribute) \
+                and routeish(node.func.value) and node.args:
+            for prefix in self.values(node.args[0]):
+                if prefix.startswith("/") and "{" not in prefix:
+                    self.policy("prefix check", prefix, node)
         if name == "addRoute" and node.args:
             route = render(node.args[0])
             suffix = kwarg(node, "suffix")
@@ -245,7 +296,7 @@ class Scanner(ast.NodeVisitor):
 
 
 def scan(src):
-    found, emitted, gates = [], [], []
+    found, emitted, gates, policies = [], [], [], []
     for root, dirs, files in os.walk(src):
         dirs[:] = sorted(d for d in dirs if d not in ("tests", "test", "__pycache__"))
         for fn in sorted(files):
@@ -255,8 +306,8 @@ def scan(src):
             rel = os.path.relpath(path, os.path.dirname(src))
             with open(path, "rb") as f:
                 tree = ast.parse(f.read(), filename=path)
-            Scanner(rel, found, emitted, gates).visit(tree)
-    return found, emitted, gates
+            Scanner(rel, found, emitted, gates, policies).visit(tree)
+    return found, emitted, gates, policies
 
 
 def shape(route):
@@ -264,7 +315,7 @@ def shape(route):
     return re.sub(r"\{[^}]*\}", "{}", route)
 
 
-def load_specs(specdirs):
+def load_specs(specdirs, skip=()):
     """Read every markdown line of each spec source once: [(label, line)]."""
     lines = []
     for name, d in specdirs:
@@ -273,7 +324,7 @@ def load_specs(specdirs):
         before = len(lines)
         for root, _, files in os.walk(d):
             for fn in sorted(files):
-                if fn.endswith(".md"):
+                if fn.endswith(".md") and not any(fnmatch.fnmatch(fn, g) for g in skip):
                     path = os.path.join(root, fn)
                     with open(path, encoding="utf-8", errors="replace") as f:
                         lines += [(f"{name}:{os.path.relpath(path, d)}:{i}", line)
@@ -310,9 +361,15 @@ def load_curated(path):
 
 
 def build(src, speclines, curated):
-    found, emitted, gates = scan(src)
+    found, emitted, gates, policies = scan(src)
     entries = {}
+    # an ad-hoc comparison on a route already handled elsewhere is just another check on it
+    known = {shape(f["route"]) for f in found if f["msg"] != "adhoc"}
     for f in found:
+        if f["msg"] == "adhoc" and shape(f["route"]) in known:
+            policies.append(dict(kind="route check", prefix=f["route"], msgs=None,
+                                 where=f["where"], by=f["handler"]))
+            continue
         key = (f["msg"], shape(f["route"]))
         e = entries.setdefault(key, dict(msg=f["msg"], route=f["route"], handled=[], emitted=[]))
         e["handled"].append(f"{f['handler']} ({f['where']})")
@@ -333,12 +390,18 @@ def build(src, speclines, curated):
         e["tier"] = c.get("tier", "unclassified")
         e["note"] = c.get("note", "")
         e["proposed"] = c.get("status") == "proposed"
+        e["retired"] = c.get("status") == "retired"
+        e["policies"] = sorted({f"{p['kind']} `{p['prefix']}` ({p['where']})" for p in policies
+                                if e["msg"] not in ("http", "mbx")
+                                and (p["msgs"] is None or e["msg"] in p["msgs"])
+                                and e["route"].startswith(p["prefix"])})
     for key, c in curated.items():
         if key not in entries:
             entries[key] = dict(msg=c["msg"], route=c["route"], handled=[], emitted=[],
                                 spec=[], tier=c.get("tier", "unclassified"),
-                                note=c.get("note", ""), absent=True,
-                                proposed=c.get("status") == "proposed")
+                                note=c.get("note", ""), absent=True, policies=[],
+                                proposed=c.get("status") == "proposed",
+                                retired=c.get("status") == "retired")
     # qry routes must be admitted by a gate and handled by processQuery, or neither
     handled_qry = {e["route"] for e in entries.values() if e["msg"] == "qry" and e["handled"]}
     gated = {g["route"] for g in gates}
@@ -346,7 +409,7 @@ def build(src, speclines, curated):
                            for r in handled_qry - gated)
     gate_problems += sorted(f"qry {r}: admitted by a gate but handled by no processQuery"
                             for r in gated - handled_qry)
-    order = {"rpy": 0, "qry": 1, "exn": 2, "http": 3, "mbx": 4}
+    order = {"rpy": 0, "qry": 1, "exn": 2, "adhoc": 3, "http": 4, "mbx": 5}
     rows = sorted(entries.values(), key=lambda e: (order.get(e["msg"], 9), e["route"]))
     return rows, gate_problems
 
@@ -357,17 +420,21 @@ def md(entries, label):
            f"Generated from {label}. Tiers and conventions are explained in "
            "[routes.md](routes.md). *In spec* is a literal search for the route in the "
            "specification sources, so it says where a spec mentions a route, not whether "
-           "the spec makes it normative.", ""]
+           "the spec makes it normative, and it does not distinguish message types: a "
+           "`qry /oobi` example in a spec is credited to the HTTP `/oobi` endpoint too. "
+           "*Inherited policy* lists prefix checks in keripy that cover the route, and "
+           "KRAM's built-in exemptions.", ""]
     titles = dict(rpy="Reply (`rpy`) routes", qry="Query (`qry`) routes",
-                  exn="Exchange (`exn`) routes", http="HTTP endpoints",
+                  exn="Exchange (`exn`) routes",
+                  adhoc="Routes matched outside the routers", http="HTTP endpoints",
                   mbx="Mailbox topics")
-    for msg in ("rpy", "qry", "exn", "http", "mbx"):
+    for msg in ("rpy", "qry", "exn", "adhoc", "http", "mbx"):
         rows = [e for e in entries if e["msg"] == msg]
         if not rows:
             continue
         out += [f"## {titles[msg]}", "",
-                "| Route | Tier | In spec | Handled by | Emitted / used by | Note |",
-                "|---|---|---|---|---|---|"]
+                "| Route | Tier | In spec | Handled by | Emitted / used by | Inherited policy | Note |",
+                "|---|---|---|---|---|---|---|"]
         for e in rows:
             def cell(items, n=3):
                 rank = {"writes": 0, "emits": 0, "reads": 1}
@@ -376,9 +443,11 @@ def md(entries, label):
                 return s + (f"<br>+{len(items) - n} more" if len(items) > n else "")
             handled = cell(e["handled"]) or (
                 "*proposed*" if e.get("absent") and e.get("proposed") else
+                "*retired*" if e.get("absent") and e.get("retired") else
                 "*not in this source*" if e.get("absent") else "—")
+            policy = "<br>".join(e.get("policies", [])) or "—"
             out.append(f"| `{e['route']}` | {e['tier']} | {cell(e['spec'], 2) or '—'} | "
-                       f"{handled} | {cell(e['emitted']) or '—'} | {e['note']} |")
+                       f"{handled} | {cell(e['emitted']) or '—'} | {policy} | {e['note']} |")
         out.append("")
     return "\n".join(out)
 
@@ -388,6 +457,8 @@ def main():
     ap.add_argument("source", help="keripy repo root or its src/keri directory")
     ap.add_argument("--spec", action="append", default=[], metavar="[NAME=]DIR",
                     help="specification source directory to search (repeatable)")
+    ap.add_argument("--spec-skip", action="append", default=[], metavar="GLOB",
+                    help="spec file names to leave out, e.g. superseded drafts (repeatable)")
     ap.add_argument("--curated", help="TOML file of tiers and notes")
     ap.add_argument("--label", default=None, help="source description for the header")
     ap.add_argument("--json", action="store_true")
@@ -400,7 +471,8 @@ def main():
         sys.exit(f"{args.source}: not a directory")
     specs = [tuple(s.split("=", 1)) if "=" in s else (os.path.basename(s.rstrip("/")), s)
              for s in args.spec]
-    entries, gate_problems = build(src, load_specs(specs), load_curated(args.curated))
+    entries, gate_problems = build(src, load_specs(specs, args.spec_skip),
+                                   load_curated(args.curated))
     if args.json:
         print(json.dumps(entries, indent=2))
     else:
@@ -411,8 +483,10 @@ def main():
         for e in entries:
             if e["tier"] == "unclassified":
                 problems.append(f"{e['msg']} {e['route']}: in source, not in registry")
-            elif e.get("absent") and not e.get("proposed"):
+            elif e.get("absent") and not (e.get("proposed") or e.get("retired")):
                 problems.append(f"{e['msg']} {e['route']}: in registry, not in source")
+            elif e["retired"] and not e.get("absent"):
+                problems.append(f"{e['msg']} {e['route']}: marked retired, but in source")
             elif e["proposed"] and not e.get("absent"):
                 problems.append(f"{e['msg']} {e['route']}: marked proposed, but now in source")
     for p in problems:

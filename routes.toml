@@ -6,6 +6,7 @@
 #
 # tier: protocol | interop | application   (defined in routes.md)
 # status = "proposed" marks a route under review that the source need not have yet.
+# status = "retired" keeps the record of a route keripy has dropped, so its name is not reused.
 # Tiers below are a first draft for maintainer review, not settled.
 
 # ---- reply (rpy) ----
@@ -75,7 +76,7 @@ msg = "rpy"
 route = "/decl/tags"
 tier = "interop"
 status = "proposed"
-note = "Proposed in keripy#1685, not on main. Self-asserted witness tags (e.g. `testnet`), same shape as `/loc/scheme`. See routes.md."
+note = "Proposed in keripy#1685, not on main; that PR adds a v2 KRAM exemption for `/decl/`. Self-asserted witness tags (e.g. `testnet`), same shape as `/loc/scheme`. See routes.md."
 
 [[route]]
 msg = "rpy"
@@ -143,7 +144,7 @@ note = "As `/ipex/apply`."
 msg = "exn"
 route = "/ipex/grant"
 tier = "protocol"
-note = "As `/ipex/apply`."
+note = "As `/ipex/apply`. The two keripy handlers disagree on its legal predecessors: vc/protocoling.py allows only `agree`, acdc/ipexing.py allows `apply` or `agree`. Only vc/protocoling.py is wired into keripy's CLI; nothing in src imports acdc/ipexing.py."
 
 [[route]]
 msg = "exn"
@@ -234,6 +235,20 @@ msg = "exn"
 route = "/oobis"
 tier = "interop"
 note = "OOBI notification. Plural, unlike every other route."
+
+# ---- matched outside the routers ----
+
+[[route]]
+msg = "adhoc"
+route = "/oobi/witness"
+tier = "protocol"
+note = "`rpy` body of an OOBI HTTP response, dispatched by a comparison in `Oobiery` (app/oobiing.py:576). The KERI spec uses it as an example."
+
+[[route]]
+msg = "adhoc"
+route = "/oobi/controller"
+tier = "protocol"
+note = "As `/oobi/witness`."
 
 # ---- HTTP (falcon) ----
 # Mounted by the witness app (app/indirecting.py setupWitness) unless noted.
